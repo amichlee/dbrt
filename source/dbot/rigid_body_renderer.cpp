@@ -293,6 +293,318 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
     }
 }
 
+
+// todo: does not handle the case properly when the depth is around zero or
+// negative
+void RigidBodyRenderer::Render2(Matrix camera_matrix,
+                               int n_rows,
+                               int n_cols,
+                               std::vector<float>& depth_image,
+                               std::map<std::vector<int>, Eigen::VectorXd>& data) const
+{
+    Matrix3d inv_camera_matrix = camera_matrix.inverse();
+
+    // we project all the points into image space
+    // --------------------------------------------------------
+    vector<vector<Vector3d>> trans_vertices(vertices_.size());
+    vector<vector<Vector2d>> image_vertices(vertices_.size());
+
+    int count = 0;
+
+    //bool ya = vertices_[0].size() == 3*indices_[0].size();
+
+    //std::cout <<  vertices_[0].size() << "vs" << 3*indices_[0].size() << std::endl;
+
+    for (int part_index = 0; part_index < int(vertices_.size()); part_index++)
+    {
+        image_vertices[part_index].resize(vertices_[part_index].size());
+        trans_vertices[part_index].resize(vertices_[part_index].size());
+        for (int point_index = 0;
+             point_index < int(vertices_[part_index].size());
+             point_index++)
+        {
+            trans_vertices[part_index][point_index] =
+                R_[part_index] * vertices_[part_index][point_index] +
+                t_[part_index];
+            image_vertices[part_index][point_index] =
+                (camera_matrix * trans_vertices[part_index][point_index] /
+                 trans_vertices[part_index][point_index](2))
+                    .topRows(2);
+
+
+/*            Vector3d temp = camera_matrix * trans_vertices[part_index][point_index];
+
+            //check if it is in the image
+            if(temp[1] >= 0 && temp[1] < n_rows && temp[0] >= 0 && temp[0] < n_cols) {
+
+                //check if it is in the map
+                std::vector<int> index = {floor(temp(1)), floor(temp(0))};
+
+                if(data.count(index) == 1) {
+
+                    //check if new depth is less
+                    if(data[index][5] > temp[2] && temp[2] > 0.3) {
+
+                        VectorXd temp = data[index];
+
+                        temp[0] = part_index;
+                        temp[1] = point_index;
+                        temp[2] = trans_vertices[part_index][point_index][0];
+                        temp[3] = trans_vertices[part_index][point_index][1];
+                        temp[4] = trans_vertices[part_index][point_index][2];
+                        temp[5] = temp[2];  
+
+                        data[index] = temp;                                              
+                    }
+
+                }
+
+                else if(temp[2] > 0.3 && temp[2] < 1){
+                    VectorXd temp2(6);
+                    temp2[0] = part_index;
+                    temp2[1] = point_index;
+                    temp2[2] = trans_vertices[part_index][point_index][0];
+                    temp2[3] = trans_vertices[part_index][point_index][1];
+                    temp2[4] = trans_vertices[part_index][point_index][2];
+                    temp2[5] = temp[2]; 
+
+                    data[index] = temp2;
+                }
+            }*/
+
+/*            data.push_back(Eigen::VectorXd(8));
+            data[count][0] = part_index;
+            data[count][1] = point_index;
+            data[count][2] = trans_vertices[part_index][point_index](0);
+            data[count][3] = trans_vertices[part_index][point_index](1);
+            data[count][4] = trans_vertices[part_index][point_index](2);
+            data[count][5] = -1;
+            data[count][6] = -1;
+            data[count][7] = -1;
+            count = count + 1;*/
+        }
+   }
+
+     //count = 0;
+
+    // we find the intersections with the triangles and the depths
+    // ---------------------------------------------------
+    depth_image =
+        vector<float>(n_rows * n_cols, numeric_limits<float>::infinity());
+
+    for (int part_index = 0; part_index < int(indices_.size()); part_index++)
+    {
+        for (int triangle_index = 0;
+             triangle_index < int(indices_[part_index].size());
+             triangle_index++)
+        {
+            vector<Vector2d> vertices(3);
+            Vector2d center(Vector2d::Zero());
+
+            // find the min and max indices to be checked
+            // ------------------------------------------------------------
+            int min_row = numeric_limits<int>::max();
+            int max_row = -numeric_limits<int>::max();
+            int min_col = numeric_limits<int>::max();
+            int max_col = -numeric_limits<int>::max();
+            bool behind_camera = false;
+            for (int i = 0; i < 3; i++)
+            {
+                vertices[i] =
+                    image_vertices[part_index]
+                                  [indices_[part_index][triangle_index][i]];
+                center += vertices[i] / 3.;
+                min_row = ceil(float(vertices[i](1))) < min_row
+                              ? ceil(float(vertices[i](1)))
+                              : min_row;
+                max_row = floor(float(vertices[i](1))) > max_row
+                              ? floor(float(vertices[i](1)))
+                              : max_row;
+                min_col = ceil(float(vertices[i](0))) < min_col
+                              ? ceil(float(vertices[i](0)))
+                              : min_col;
+                max_col = floor(float(vertices[i](0))) > max_col
+                              ? floor(float(vertices[i](0)))
+                              : max_col;
+
+                // how should this be handled properly? for now if some vertex
+                // in a triangle comes to lie behind camera
+                // we just discard that triangle.
+                if (trans_vertices[part_index]
+                                  [indices_[part_index][triangle_index][i]](2) <
+                    0.001)
+                    behind_camera = true;
+            }
+            if (behind_camera) continue;
+
+            // make sure all of them are inside of image
+            // -----------------------------------------------------------------
+            min_row = min_row >= 0 ? min_row : 0;
+            max_row = max_row < n_rows ? max_row : (n_rows - 1);
+            min_col = min_col >= 0 ? min_col : 0;
+            max_col = max_col < n_cols ? max_col : (n_cols - 1);
+
+            // check whether triangle is inside image
+            // ----------------------------------------------------------------------
+            if (max_row < 0 || min_row >= n_rows || max_col < 0 ||
+                min_col >= n_cols || max_row < min_row || max_col < min_col)
+                continue;
+
+            // we find the line params of the triangle sides
+            // ---------------------------------------------------------------
+            vector<float> slopes(3);
+            vector<bool> boundary_type(3);
+            const bool upper = true;
+            const bool lower = false;
+
+            for (int i = 0; i < 3; i++)
+            {
+                Vector2d side = vertices[(i + 1) % 3] - vertices[i];
+                slopes[i] = side(1) / side(0);
+
+                // we determine whether the line limits the triangle on top or
+                // on the bottom
+                if (vertices[i](1) + slopes[i] * (center(0) - vertices[i](0)) >
+                    center(1))
+                    boundary_type[i] = upper;
+                else
+                    boundary_type[i] = lower;
+            }
+
+            if (boundary_type[0] == boundary_type[1] &&
+                boundary_type[0] ==
+                    boundary_type[2])  // if triangle is degenerate we continue
+                continue;
+
+            for (int col = min_col; col <= max_col; col++)
+            {
+                float min_row_given_col = -numeric_limits<float>::max();
+                float max_row_given_col = numeric_limits<float>::max();
+
+                // the min_row is the max lower boundary at that column, and the
+                // max_row is the min upper boundary at that column
+                for (int i = 0; i < 3; i++)
+                {
+                    if (boundary_type[i] == lower)
+                    {
+                        float lowe_Rboundary = ceil(
+                            float(vertices[i](1) +
+                                  slopes[i] * (float(col) - vertices[i](0))));
+                        min_row_given_col = lowe_Rboundary > min_row_given_col
+                                                ? lowe_Rboundary
+                                                : min_row_given_col;
+                    }
+                    else
+                    {
+                        float upper_boundary = floor(
+                            float(vertices[i](1) +
+                                  slopes[i] * (float(col) - vertices[i](0))));
+                        max_row_given_col = upper_boundary < max_row_given_col
+                                                ? upper_boundary
+                                                : max_row_given_col;
+                    }
+                }
+
+                // we push back the indices of the intersections and the
+                // corresponding depths ------------------------------------
+                Vector3d normal =
+                    R_[part_index] * normals_[part_index][triangle_index];
+                float offset = normal.dot(
+                    trans_vertices[part_index]
+                                  [indices_[part_index][triangle_index][0]]);
+                for (int row = int(min_row_given_col);
+                     row <= int(max_row_given_col);
+                     row++)
+                    if (row >= 0 && row < n_rows && col >= 0 && col < n_cols)
+                    {
+                        //                      intersec_tindices.push_back(row*n_cols
+                        //+
+                        // col);
+                        // we find the intersection between the ray and the
+                        // triangle --------------------------------------------
+                        Vector3d line_vector =
+                            inv_camera_matrix *
+                            Vector3d(
+                                col, row, 1);  // the depth is the z component
+                        float depth =
+                            std::fabs(offset / normal.dot(line_vector));
+                        // if(depth > 0.5)
+                        depth_image[row * n_cols + col] =
+                            depth < depth_image[row * n_cols + col]
+                                ? depth
+                                : depth_image[row * n_cols + col];
+
+
+                        Vector3d coord = inv_camera_matrix * Vector3d(depth*col, depth*row, depth);
+
+
+                        //check if it is in the map
+                        std::vector<int> index = {row, col};
+
+                        if(data.count(index) == 1) {
+
+                            //check if new depth is less
+                            if(data[index][5] > depth && depth > 0.3) {
+
+                                VectorXd temp = data[index];
+
+                                temp[0] = part_index;
+                                temp[1] = triangle_index;
+                                temp[2] = coord[0];
+                                temp[3] = coord[1];
+                                temp[4] = coord[2];
+                                temp[5] = depth;  
+
+                                temp[6] = trans_vertices[part_index][indices_[part_index][triangle_index][0]](0);
+                                temp[7] = trans_vertices[part_index][indices_[part_index][triangle_index][0]](1);
+                                temp[8] = trans_vertices[part_index][indices_[part_index][triangle_index][0]](2);
+                                temp[9] = trans_vertices[part_index][indices_[part_index][triangle_index][1]](0);
+                                temp[10] = trans_vertices[part_index][indices_[part_index][triangle_index][1]](1);
+                                temp[11] = trans_vertices[part_index][indices_[part_index][triangle_index][1]](2);
+                                temp[12] = trans_vertices[part_index][indices_[part_index][triangle_index][2]](0);
+                                temp[13] = trans_vertices[part_index][indices_[part_index][triangle_index][2]](1);
+                                temp[14] = trans_vertices[part_index][indices_[part_index][triangle_index][2]](2);                                                                                                                                
+
+                                data[index] = temp;                                              
+                            }
+
+                        }
+
+                        else if(depth > 0.3 && depth < 1){
+                            VectorXd temp2(15);
+                            temp2[0] = part_index;
+                            temp2[1] = triangle_index;
+                            temp2[2] = coord[0];
+                            temp2[3] = coord[1];
+                            temp2[4] = coord[2];
+                            temp2[5] = depth; 
+
+                            temp2[6] = trans_vertices[part_index][indices_[part_index][triangle_index][0]](0);
+                            temp2[7] = trans_vertices[part_index][indices_[part_index][triangle_index][0]](1);
+                            temp2[8] = trans_vertices[part_index][indices_[part_index][triangle_index][0]](2);
+                            temp2[9] = trans_vertices[part_index][indices_[part_index][triangle_index][1]](0);
+                            temp2[10] = trans_vertices[part_index][indices_[part_index][triangle_index][1]](1);
+                            temp2[11] = trans_vertices[part_index][indices_[part_index][triangle_index][1]](2);
+                            temp2[12] = trans_vertices[part_index][indices_[part_index][triangle_index][2]](0);
+                            temp2[13] = trans_vertices[part_index][indices_[part_index][triangle_index][2]](1);
+                            temp2[14] = trans_vertices[part_index][indices_[part_index][triangle_index][2]](2);                            
+
+                            data[index] = temp2;
+                        }
+
+
+
+                        
+/*                        data[count][5] = row;
+                        data[count][6] = col;
+                        data[count][7] = depth_image[row * n_cols + col];*/
+                    }
+            }
+            //count = count + 1;
+        }
+    }
+}
+
 // todo: does not handle the case properly when the depth is around zero or
 // negative
 void RigidBodyRenderer::Render(Matrix camera_matrix,
@@ -326,6 +638,42 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
     }
     intersect_indices.resize(count);
     depth.resize(count);
+}
+
+// todo: does not handle the case properly when the depth is around zero or
+// negative
+void RigidBodyRenderer::Render2(Matrix camera_matrix,
+                               int n_rows,
+                               int n_cols,
+                               std::vector<int>& intersect_indices,
+                               std::vector<float>& depth,
+                               std::map<std::vector<int>, Eigen::VectorXd>& data) const
+{
+    vector<float> depth_image;
+
+    Render2(camera_matrix, n_rows, n_cols, depth_image, data);
+
+/*    // fill the depths into the depth vector -------------------------------
+    intersect_indices.clear();
+    depth.clear();
+    intersect_indices.resize(n_rows * n_cols);
+    depth.resize(n_rows * n_cols);
+    int count = 0;
+    for (int row = 0; row < n_rows; row++)
+    {
+        for (int col = 0; col < n_cols; col++)
+        {
+            if (depth_image[row * n_cols + col] !=
+                numeric_limits<float>::infinity())
+            {
+                intersect_indices[count] = row * n_cols + col;
+                depth[count] = depth_image[row * n_cols + col];
+                count++;
+            }
+        }
+    }
+    intersect_indices.resize(count);
+    depth.resize(count);*/
 }
 
 void RigidBodyRenderer::Render(std::vector<float>& depth_image) const
