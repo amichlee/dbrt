@@ -294,9 +294,9 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
 }
 
 
-// todo: does not handle the case properly when the depth is around zero or
-// negative
-void RigidBodyRenderer::Render2(Matrix camera_matrix,
+// This function is modified for flow usage to extract more data about the mesh
+// and return it via the data map
+void RigidBodyRenderer::Render(Matrix camera_matrix,
                                int n_rows,
                                int n_cols,
                                std::vector<float>& depth_image,
@@ -310,10 +310,6 @@ void RigidBodyRenderer::Render2(Matrix camera_matrix,
     vector<vector<Vector2d>> image_vertices(vertices_.size());
 
     int count = 0;
-
-    //bool ya = vertices_[0].size() == 3*indices_[0].size();
-
-    //std::cout <<  vertices_[0].size() << "vs" << 3*indices_[0].size() << std::endl;
 
     for (int part_index = 0; part_index < int(vertices_.size()); part_index++)
     {
@@ -331,61 +327,8 @@ void RigidBodyRenderer::Render2(Matrix camera_matrix,
                  trans_vertices[part_index][point_index](2))
                     .topRows(2);
 
-
-/*            Vector3d temp = camera_matrix * trans_vertices[part_index][point_index];
-
-            //check if it is in the image
-            if(temp[1] >= 0 && temp[1] < n_rows && temp[0] >= 0 && temp[0] < n_cols) {
-
-                //check if it is in the map
-                std::vector<int> index = {floor(temp(1)), floor(temp(0))};
-
-                if(data.count(index) == 1) {
-
-                    //check if new depth is less
-                    if(data[index][5] > temp[2] && temp[2] > 0.3) {
-
-                        VectorXd temp = data[index];
-
-                        temp[0] = part_index;
-                        temp[1] = point_index;
-                        temp[2] = trans_vertices[part_index][point_index][0];
-                        temp[3] = trans_vertices[part_index][point_index][1];
-                        temp[4] = trans_vertices[part_index][point_index][2];
-                        temp[5] = temp[2];  
-
-                        data[index] = temp;                                              
-                    }
-
-                }
-
-                else if(temp[2] > 0.3 && temp[2] < 1){
-                    VectorXd temp2(6);
-                    temp2[0] = part_index;
-                    temp2[1] = point_index;
-                    temp2[2] = trans_vertices[part_index][point_index][0];
-                    temp2[3] = trans_vertices[part_index][point_index][1];
-                    temp2[4] = trans_vertices[part_index][point_index][2];
-                    temp2[5] = temp[2]; 
-
-                    data[index] = temp2;
-                }
-            }*/
-
-/*            data.push_back(Eigen::VectorXd(8));
-            data[count][0] = part_index;
-            data[count][1] = point_index;
-            data[count][2] = trans_vertices[part_index][point_index](0);
-            data[count][3] = trans_vertices[part_index][point_index](1);
-            data[count][4] = trans_vertices[part_index][point_index](2);
-            data[count][5] = -1;
-            data[count][6] = -1;
-            data[count][7] = -1;
-            count = count + 1;*/
         }
    }
-
-     //count = 0;
 
     // we find the intersections with the triangles and the depths
     // ---------------------------------------------------
@@ -515,6 +458,7 @@ void RigidBodyRenderer::Render2(Matrix camera_matrix,
                 for (int row = int(min_row_given_col);
                      row <= int(max_row_given_col);
                      row++)
+                {
                     if (row >= 0 && row < n_rows && col >= 0 && col < n_cols)
                     {
                         //                      intersec_tindices.push_back(row*n_cols
@@ -591,16 +535,9 @@ void RigidBodyRenderer::Render2(Matrix camera_matrix,
 
                             data[index] = temp2;
                         }
-
-
-
-                        
-/*                        data[count][5] = row;
-                        data[count][6] = col;
-                        data[count][7] = depth_image[row * n_cols + col];*/
                     }
+                }
             }
-            //count = count + 1;
         }
     }
 }
@@ -640,40 +577,17 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
     depth.resize(count);
 }
 
-// todo: does not handle the case properly when the depth is around zero or
-// negative
-void RigidBodyRenderer::Render2(Matrix camera_matrix,
+// This function is modified for flow usage to extract more data about the mesh
+// and return it via the data map
+void RigidBodyRenderer::Render(Matrix camera_matrix,
                                int n_rows,
                                int n_cols,
-                               std::vector<int>& intersect_indices,
-                               std::vector<float>& depth,
                                std::map<std::vector<int>, Eigen::VectorXd>& data) const
 {
     vector<float> depth_image;
 
-    Render2(camera_matrix, n_rows, n_cols, depth_image, data);
+    Render(camera_matrix, n_rows, n_cols, depth_image, data);
 
-/*    // fill the depths into the depth vector -------------------------------
-    intersect_indices.clear();
-    depth.clear();
-    intersect_indices.resize(n_rows * n_cols);
-    depth.resize(n_rows * n_cols);
-    int count = 0;
-    for (int row = 0; row < n_rows; row++)
-    {
-        for (int col = 0; col < n_cols; col++)
-        {
-            if (depth_image[row * n_cols + col] !=
-                numeric_limits<float>::infinity())
-            {
-                intersect_indices[count] = row * n_cols + col;
-                depth[count] = depth_image[row * n_cols + col];
-                count++;
-            }
-        }
-    }
-    intersect_indices.resize(count);
-    depth.resize(count);*/
 }
 
 void RigidBodyRenderer::Render(std::vector<float>& depth_image) const

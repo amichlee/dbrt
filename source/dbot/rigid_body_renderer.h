@@ -51,11 +51,9 @@ public:
                 std::vector<int>& intersect_indices,
                 std::vector<float>& depth) const;
 
-    void Render2(Matrix camera_matrix,
+    void Render(Matrix camera_matrix,
                 int n_rows,
                 int n_cols,
-                std::vector<int>& intersect_indices,
-                std::vector<float>& depth,
                 std::map<std::vector<int>, Eigen::VectorXd>& data) const;
 
     void Render(Matrix camera_matrix,
@@ -63,7 +61,7 @@ public:
                 int n_cols,
                 std::vector<float>& depth_image) const;
 
-    void Render2(Matrix camera_matrix,
+    void Render(Matrix camera_matrix,
                 int n_rows,
                 int n_cols,
                 std::vector<float>& depth_image,
