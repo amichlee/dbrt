@@ -577,7 +577,7 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
     depth.resize(count);
 }
 
-// This function is modified for flow usage to extract more data about the mesh
+/*// This function is modified for flow usage to extract more data about the mesh
 // and return it via the data map
 void RigidBodyRenderer::Render(Matrix camera_matrix,
                                int n_rows,
@@ -589,7 +589,7 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
     Render(camera_matrix, n_rows, n_cols, depth_image, data);
 
 }
-
+*/
 void RigidBodyRenderer::Render(std::vector<float>& depth_image) const
 {
     assert(!camera_matrix_.isZero());
