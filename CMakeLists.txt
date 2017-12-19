@@ -13,12 +13,15 @@ option(DBOT_BUILD_GPU "Compile CUDA enabled trackers" ON)
 add_definitions(-std=c++11 -fno-omit-frame-pointer)
 add_definitions(-DPROFILING_ON=1 -fPIC) #print profiling output
 
-#add_definitions(-Wall)
-#add_definitions(-Wno-unused-local-typedefs)
-#add_definitions(-Wno-deprecated-declarations)
-#add_definitions(-Wno-comment)
-## for eigen-3.1.2
-#add_definitions(-Wno-deprecated-register)
+add_definitions(-Wall)
+add_definitions(-Wno-unused-local-typedefs)
+add_definitions(-Wno-deprecated-declarations)
+add_definitions(-Wno-comment)
+# for eigen-3.1.2
+add_definitions(-Wno-deprecated-register)
+
+# memcpy workaround
+# set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} \"-D_FORCE_INLINES\" ")
 
 ############################
 # Library Version          #
@@ -45,6 +48,9 @@ set(dbot_LIBRARIES ${dbot_LIBRARY})
 
 find_package(Eigen REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem)
+#find_package(catkin REQUIRED COMPONENTS
+#  roscpp
+#  roslib)
 
 include_directories(${Eigen_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})
@@ -53,9 +59,9 @@ add_definitions(${Eigen_DEFINITIONS})
 
 # GPU libs
 set(GLEW_DIR ${CMAKE_MODULE_PATH})
-find_package(CUDA QUIET)
-find_package(GLEW QUIET)
-find_package(OpenGL QUIET)
+find_package(CUDA)
+find_package(GLEW)
+find_package(OpenGL)
 
 if(DBOT_BUILD_GPU AND CUDA_FOUND AND GLEW_FOUND AND OPENGL_FOUND)
   include_directories(${GLEW_INCLUDE_DIRS})
@@ -108,7 +114,10 @@ endif(DBOT_BUILD_GPU AND CUDA_FOUND AND GLEW_FOUND AND OPENGL_FOUND)
 # Dependencies             #
 ############################
 # Use catkin of available otherwise fall back to native cmake
-find_package(catkin QUIET COMPONENTS fl)
+find_package(catkin QUIET COMPONENTS
+  roscpp
+  roslib
+  fl)
 
 if(DBOT_BUILD_GPU)
   list(APPEND dbot_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS})
@@ -120,7 +129,7 @@ endif(DBOT_BUILD_GPU)
 if(catkin_FOUND)
   message(STATUS "Using catkin")
   catkin_package(
-    INCLUDE_DIRS
+    INCLUDE_DIRS 
       ${dbot_INCLUDE_DIRS}
     LIBRARIES
       ${dbot_LIBRARIES}
@@ -141,6 +150,11 @@ endif(catkin_FOUND)
 ## dbot library            #
 ############################
 include_directories(${dbot_INCLUDE_DIRS})
+include_directories(
+# include
+${catkin_INCLUDE_DIRS}
+)
+
 
 set(dbot_SOURCE_DIR source/${PROJECT_NAME})
 
@@ -183,13 +197,19 @@ if(DBOT_BUILD_GPU)
         ${dbot_SOURCE_DIR}/gpu/cuda_likelihood_evaluator.cu
         ${dbot_SOURCE_DIR}/gpu/shader.cpp
         ${dbot_SOURCE_DIR}/gpu/object_rasterizer.cpp
-        ${dbot_SOURCE_DIR}/gpu/buffer_configuration.cpp)
+        ${dbot_SOURCE_DIR}/gpu/buffer_configuration.cpp
+#	/usr/local/cuda-8.0/lib64/libcudart_static.a
+	)
 
     target_link_libraries(${dbot_LIBRARY_GPU}
         ${catkin_LIBRARIES}
         ${OPENGL_LIBRARIES}
         ${GLFW_LIBRARY}
-        ${GLEW_LIBRARIES})
+        ${GLEW_LIBRARIES}
+#	${CUDA_LIBRARIES}
+#	${CUDA_CUT_LIBRARIES}
+#	/usr/local/cuda-8.0/lib64/libcudart_static.a
+	)
 endif(DBOT_BUILD_GPU)
 
 ############################
