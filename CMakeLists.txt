@@ -18,7 +18,7 @@ add_definitions(-Wno-unused-local-typedefs)
 add_definitions(-Wno-deprecated-declarations)
 add_definitions(-Wno-comment)
 # for eigen-3.1.2
-add_definitions(-Wno-deprecated-register)
+# add_definitions(-Wno-deprecated-register)
 
 # memcpy workaround
 # set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} \"-D_FORCE_INLINES\" ")
@@ -78,7 +78,11 @@ if(DBOT_BUILD_GPU AND CUDA_FOUND AND GLEW_FOUND AND OPENGL_FOUND)
   # --ptxas-options=-v to see number of registers, local, shared and constant
   # memory used in kernels
   set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -O2 -arch=sm_20)
-  list(APPEND dbot_LIBRARIES ${dbot_LIBRARY_GPU})
+  list(APPEND dbot_LIBRARIES ${dbot_LIBRARY_GPU}
+    /usr/local/cuda-8.0/lib64/libcudart.so
+    /usr/local/cuda-8.0/lib64/libcudart.so.8.0.61
+    /usr/local/cuda-8.0/lib64/libcudart_static.a
+    )
 
   # activate gpu implementations
   add_definitions(-DDBOT_BUILD_GPU=1)
@@ -181,6 +185,9 @@ set(dbot_SOURCES
     ${dbot_SOURCE_DIR}/builder/rb_sensor_builder.cpp
     ${dbot_SOURCE_DIR}/builder/particle_tracker_builder.cpp
     ${dbot_SOURCE_DIR}/builder/gaussian_tracker_builder.cpp
+    /usr/local/cuda-8.0/lib64/libcudart.so
+    /usr/local/cuda-8.0/lib64/libcudart.so.8.0.61
+    /usr/local/cuda-8.0/lib64/libcudart_static.a
 )
 
 add_library(${dbot_LIBRARY} SHARED
@@ -198,6 +205,8 @@ if(DBOT_BUILD_GPU)
         ${dbot_SOURCE_DIR}/gpu/shader.cpp
         ${dbot_SOURCE_DIR}/gpu/object_rasterizer.cpp
         ${dbot_SOURCE_DIR}/gpu/buffer_configuration.cpp
+##	/usr/local/cuda-8.0/lib64/libcudart.so
+##	/usr/local/cuda-8.0/lib64/libcudart.so.8.0.61
 #	/usr/local/cuda-8.0/lib64/libcudart_static.a
 	)
 
@@ -206,6 +215,7 @@ if(DBOT_BUILD_GPU)
         ${OPENGL_LIBRARIES}
         ${GLFW_LIBRARY}
         ${GLEW_LIBRARIES}
+##	/usr/local/cuda-8.0/lib64/libcudart.so
 #	${CUDA_LIBRARIES}
 #	${CUDA_CUT_LIBRARIES}
 #	/usr/local/cuda-8.0/lib64/libcudart_static.a

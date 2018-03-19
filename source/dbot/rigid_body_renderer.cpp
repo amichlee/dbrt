@@ -382,15 +382,19 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
 
             // make sure all of them are inside of image
             // -----------------------------------------------------------------
-            min_row = min_row >= 0 ? min_row : 0;
-            max_row = max_row < n_rows ? max_row : (n_rows - 1);
-            min_col = min_col >= 0 ? min_col : 0;
-            max_col = max_col < n_cols ? max_col : (n_cols - 1);
+
+            //CHANGED TO GIVE SOME PADDING
+            min_row = min_row >= -10 ? min_row : -10;
+            max_row = max_row < n_rows + 10 ? max_row : (n_rows - 1 + 10);
+            min_col = min_col >= -10 ? min_col : -10;
+            max_col = max_col < n_cols + 10 ? max_col : (n_cols - 1 + 10);
 
             // check whether triangle is inside image
             // ----------------------------------------------------------------------
-            if (max_row < 0 || min_row >= n_rows || max_col < 0 ||
-                min_col >= n_cols || max_row < min_row || max_col < min_col)
+
+            //CHANGED TO GIVE SOME PADDING
+            if (max_row < -10 || min_row >= (n_rows + 10) || max_col < -10 ||
+                min_col >= (n_cols + 10) || max_row < min_row || max_col < min_col)
                 continue;
 
             // we find the line params of the triangle sides
@@ -459,8 +463,8 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
                      row <= int(max_row_given_col);
                      row++)
                 {
-                    if (row >= 0 && row < n_rows && col >= 0 && col < n_cols)
-                    {
+                    //if (row >= 0 && row < n_rows && col >= 0 && col < n_cols) //removed
+                    //{ //removed
                         //                      intersec_tindices.push_back(row*n_cols
                         //+
                         // col);
@@ -473,11 +477,14 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
                         float depth =
                             std::fabs(offset / normal.dot(line_vector));
                         // if(depth > 0.5)
+                        if (row >= 0 && row < n_rows && col >= 0 && col < n_cols) //added
+                        { //added
                         depth_image[row * n_cols + col] =
                             depth < depth_image[row * n_cols + col]
                                 ? depth
                                 : depth_image[row * n_cols + col];
 
+                        } //added
 
                         Vector3d coord = inv_camera_matrix * Vector3d(depth*col, depth*row, depth);
 
@@ -535,7 +542,7 @@ void RigidBodyRenderer::Render(Matrix camera_matrix,
 
                             data[index] = temp2;
                         }
-                    }
+                    //} //removed
                 }
             }
         }
